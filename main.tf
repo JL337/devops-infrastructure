@@ -4,17 +4,9 @@ provider "aws" {
 
 data "template_file" "app_init" {
 	template = "${file("./scripts/app_user_data.sh")}"
-}
-
-resource "aws_instance" "app" {
-	ami = "ami-5db8d324"
-	instance_type = "t2.micro"
-	user_data="${data.template_file.app_init.rendered}"
-	subnet_id = "${aws_subnet.app.id}"
-	security_groups = ["${aws_security_group.allow_all.id}"]
-	tags {
-		Name = "Jonathan-Terraform-App"
-	}
+  vars {
+    db_ip = "${module.db-tier.private_ip}"
+  }
 }
 
 resource "aws_vpc" "main" {
@@ -22,36 +14,6 @@ resource "aws_vpc" "main" {
   tags {
     Name = "VPC-Jonathan"
   }
-}
-
-resource "aws_subnet" "app" {
-	vpc_id     = "${aws_vpc.main.id}"
-	cidr_block = "10.2.0.0/24"
-	map_public_ip_on_launch = true
-	tags {
-		Name = "jon-subnet-terraform-app"
-  	}
-}
-
-resource "aws_security_group" "allow_all" {
-        name        = "jon-sg-terraform-app"
-        description = "Allow all inbound traffic"
-		vpc_id     = "${aws_vpc.main.id}"
-    ingress {
-        from_port   = 80
-        to_port     = 80
-        protocol    = "tcp"
-        cidr_blocks = ["0.0.0.0/0"]
-    }
-    egress {
-        from_port   = 0
-        to_port     = 0
-        protocol    = "-1"
-        cidr_blocks = ["0.0.0.0/0"]
-    }
-    tags {
-        Name = "Jon-Sg-Terraform-App"
-    }
 }
 
 resource "aws_internet_gateway" "gw" {
@@ -74,12 +36,37 @@ resource "aws_route_table" "public" {
   }
 }
 
-resource "aws_route_table_association" "a" {
-  subnet_id      = "${aws_subnet.app.id}"
-  route_table_id = "${aws_route_table.public.id}"
+module "app-tier" {
+  name="Jonathan-App"
+  source="./modules/tier"
+  vpc_id="${aws_vpc.main.id}"
+  route_table_id="${aws_route_table.public.id}"
+  cidr_block="10.2.0.0/24"
+  user_data="${data.template_file.app_init.rendered}"
+  ami_id = "ami-5db8d324"
+  map_public_ip_on_launch = true
+
+  ingress = [{
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = "0.0.0.0/0"
+  }]
 }
 
+module "db-tier" {
+  name="Jonathan-DB"
+  source="./modules/tier"
+  vpc_id="${aws_vpc.main.id}"
+  route_table_id="${aws_vpc.main.main_route_table_id}"
+  cidr_block="10.2.1.0/24"
+  user_data=""
+  ami_id = "ami-8c80ebf5"
 
-
-
-
+  ingress = [{
+    from_port   = 27017
+    to_port     = 27017
+    protocol    = "tcp"
+    cidr_blocks = "${module.app-tier.subnet_cidr_block}"
+  }]
+}
