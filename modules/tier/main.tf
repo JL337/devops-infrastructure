@@ -15,14 +15,7 @@ resource "aws_route_table_association" "a" {
 resource "aws_security_group" "allow_all" {
     name        = "${var.name}"
     description = "Allow all inbound traffic"
-		vpc_id     = "${var.vpc_id}"
-
-    # ingress {
-    #     from_port   = 80
-    #     to_port     = 80
-    #     protocol    = "tcp"
-    #     cidr_blocks = ["0.0.0.0/0"]
-    # }
+		vpc_id      = "${var.vpc_id}"
     
     egress {
         from_port   = 0
@@ -46,11 +39,11 @@ resource "aws_security_group_rule" "rule" {
 }
 
 resource "aws_instance" "app" {
-	ami 					= "${var.ami_id}"
-	instance_type 			= "t2.micro"
-	user_data				= "${var.user_data}"
+	ami 					    = "${var.ami_id}"
+	instance_type     = "t2.micro"
+	user_data				  = "${var.user_data}"
 	subnet_id 				= "${aws_subnet.app.id}"
-	security_groups			= ["${aws_security_group.allow_all.id}"]
+	security_groups		= ["${aws_security_group.allow_all.id}"]
 	tags {
 		Name = "${var.name}"
 	}
