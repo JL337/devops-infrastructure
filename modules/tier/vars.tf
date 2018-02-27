@@ -15,7 +15,7 @@ variable "name" {
 }
 
 variable "user_data" {
-	description = "User data to supplt to the instance"
+	description = "User data to supply to the instance"
 }
 
 variable "route_table_id" {
@@ -28,4 +28,8 @@ variable "ami_id" {
 
 variable "ingress" {
 	type = "list"
+}
+
+variable "machine_count" {
+  description = "The number of machines to create"
 }

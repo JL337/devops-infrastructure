@@ -46,6 +46,7 @@ module "app-tier" {
   user_data="${data.template_file.app_init.rendered}"
   ami_id = "ami-5db8d324"
   map_public_ip_on_launch = true
+  machine_count = 2
 
   ingress = [{
     from_port   = 80
@@ -63,6 +64,7 @@ module "db-tier" {
   cidr_block="10.2.1.0/24"
   user_data=""
   ami_id = "ami-8c80ebf5"
+  machine_count = 1
 
   ingress = [{
     from_port   = 27017
@@ -70,4 +72,37 @@ module "db-tier" {
     protocol    = "tcp"
     cidr_blocks = "${module.app-tier.subnet_cidr_block}"
   }]
+}
+
+# Create a new load balancer
+resource "aws_elb" "lb" {
+  name               = "jon-terraform-elb"
+  # availability_zones = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
+
+  listener {
+    instance_port     = 80
+    instance_protocol = "http"
+    lb_port           = 80
+    lb_protocol       = "http"
+  }
+
+  health_check {
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 3
+    target              = "HTTP:80/"
+    interval            = 10
+  }
+
+  instances                   = ["${module.app-tier.app_id}"]
+  security_groups             = ["${module.app-tier.sec_id}"]
+  subnets                     = ["${module.app-tier.sub_id}"]
+  cross_zone_load_balancing   = true
+  idle_timeout                = 400
+  connection_draining         = true
+  connection_draining_timeout = 400
+
+  tags {
+    Name = "jon-terraform-elb"
+  }
 }
